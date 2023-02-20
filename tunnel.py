@@ -19,7 +19,7 @@ class Connection():
         self.id = connection_id
         conn_dest = proxy_addr if proxy_addr else remote_addr
         print("Establishing connection with remote tunneld at %s:%s" % (conn_dest['host'], conn_dest['port']))
-        self.http_conn = http.client.HTTPConnection(conn_dest['host'], conn_dest['port'])
+        self.http_conn = httplib.HTTPConnection(conn_dest['host'], conn_dest['port'])
         self.remote_addr = remote_addr
 
     def _url(self, url):
@@ -48,7 +48,7 @@ class Connection():
             response = self.http_conn.getresponse()
             response.read()
             print(response.status )
-        except (http.client.HTTPException, socket.error) as ex:
+        except (httplib.HTTPException, socket.error) as ex:
             print("Error Sending Data: %s" % ex)
 
     def receive(self):
@@ -60,7 +60,7 @@ class Connection():
                 return data
             else: 
                 return None
-        except (http.client.HTTPException, socket.error) as ex:
+        except (httplib.HTTPException, socket.error) as ex:
             print("Error Receiving Data: %s" % ex)
             return None 
 
