@@ -1,10 +1,14 @@
 #!/usr/bin/env python
+import sys
 import socket, time
-import httplib, urllib
+import urllib
+if sys.version_info[0] == 2:
+    import httplib  # noqa
+if sys.version_info[0] == 3:
+    import http.client as httplib
 from uuid import uuid4
 import threading
 import argparse
-import sys
 
 BUFFER = 1024 * 50
 
@@ -14,8 +18,8 @@ class Connection():
     def __init__(self, connection_id, remote_addr, proxy_addr):
         self.id = connection_id
         conn_dest = proxy_addr if proxy_addr else remote_addr
-        print "Establishing connection with remote tunneld at %s:%s" % (conn_dest['host'], conn_dest['port'])
-        self.http_conn = httplib.HTTPConnection(conn_dest['host'], conn_dest['port'])
+        print("Establishing connection with remote tunneld at %s:%s" % (conn_dest['host'], conn_dest['port']))
+        self.http_conn = http.client.HTTPConnection(conn_dest['host'], conn_dest['port'])
         self.remote_addr = remote_addr
 
     def _url(self, url):
@@ -30,10 +34,10 @@ class Connection():
         response = self.http_conn.getresponse()
         response.read()
         if response.status == 200:
-            print 'Successfully create connection'
+            print('Successfully create connection')
             return True 
         else:
-            print 'Fail to establish connection: status %s because %s' % (response.status, response.reason)
+            print('Fail to establish connection: status %s because %s' % (response.status, response.reason))
             return False 
 
     def send(self, data):
@@ -43,9 +47,9 @@ class Connection():
             self.http_conn.request("PUT", self._url("/" + self.id), params, headers)
             response = self.http_conn.getresponse()
             response.read()
-            print response.status 
-        except (httplib.HTTPResponse, socket.error) as ex:
-            print "Error Sending Data: %s" % ex
+            print(response.status )
+        except (http.client.HTTPException, socket.error) as ex:
+            print("Error Sending Data: %s" % ex)
 
     def receive(self):
         try: 
@@ -56,12 +60,12 @@ class Connection():
                 return data
             else: 
                 return None
-        except (httplib.HTTPResponse, socket.error) as ex:
-            print "Error Receiving Data: %s" % ex
+        except (http.client.HTTPException, socket.error) as ex:
+            print("Error Receiving Data: %s" % ex)
             return None 
 
     def close(self):
-        print "Close connection to target at remote tunnel"
+        print("Close connection to target at remote tunnel")
         self.http_conn.request("DELETE", "/" + self.id)
         self.http_conn.getresponse()
 
@@ -80,21 +84,21 @@ class SendThread(threading.Thread):
 
     def run(self):
         while not self.stopped():
-            print "Getting data from client to send"
+            print("Getting data from client to send")
             try:
                 data = self.socket.recv(BUFFER)
                 if data == '': 
-                    print "Client's socket connection broken"
+                    print("Client's socket connection broken")
                     # There should be a nicer way to stop receiver
                     self.client.receiver.stop()
                     self.client.receiver.join()
                     self.conn.close()
                     return
 
-                print "Sending data ... %s " % data
+                print("Sending data ... %s " % data)
                 self.conn.send(data)
             except socket.timeout:
-                print "time out"
+                print("time out")
 
     def stop(self):
         self._stop.set()
@@ -117,12 +121,12 @@ class ReceiveThread(threading.Thread):
 
     def run(self):
         while not self.stopped():
-            print "Retreiving data from remote tunneld"
+            print("Retreiving data from remote tunneld")
             data = self.conn.receive()
             if data:
                 sent = self.socket.sendall(data)
             else:
-                print "No data received"
+                print("No data received")
                 # sleep for sometime before trying to get data again
                 time.sleep(1)
 
@@ -176,13 +180,13 @@ def start_tunnel(listen_port, remote_addr, target_addr, proxy_addr):
     listen_sock.settimeout(None)
     listen_sock.bind(('', int(listen_port)))
     listen_sock.listen(1)
-    print "waiting for connection"
+    print("waiting for connection")
     workers = []
     try:
         while True:
             c_sock, addr = listen_sock.accept() 
             c_sock.settimeout(20)
-            print "connected by ", addr
+            print("connected by ", addr)
             worker = ClientWorker(c_sock, remote_addr, target_addr, proxy_addr)
             workers.append(worker)
             worker.start()
